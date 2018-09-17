@@ -1,7 +1,12 @@
 #include <list>
+#include <mutex>
+#include <iostream>
+#include <math.h>
 
 #include "hash/extendible_hash.h"
 #include "page/page.h"
+
+std::mutex mtx;
 
 namespace cmudb {
 
@@ -10,14 +15,20 @@ namespace cmudb {
  * array_size: fixed array size for each bucket
  */
 template <typename K, typename V>
-ExtendibleHash<K, V>::ExtendibleHash(size_t size) {}
+ExtendibleHash<K, V>::ExtendibleHash(size_t size) {
+    this->bucket_size = size;
+    this->gd = 1;
+    this->bucket_directory.resize(2);
+    this->bucket_local_depth.resize(2);
+}
 
 /*
  * helper function to calculate the hashing address of input key
  */
 template <typename K, typename V>
 size_t ExtendibleHash<K, V>::HashKey(const K &key) {
-  return 0;
+    size_t hash_value = this->hash_f(key);
+    return hash_value;
 }
 
 /*
@@ -26,7 +37,7 @@ size_t ExtendibleHash<K, V>::HashKey(const K &key) {
  */
 template <typename K, typename V>
 int ExtendibleHash<K, V>::GetGlobalDepth() const {
-  return 0;
+    return this->gd;
 }
 
 /*
@@ -35,7 +46,8 @@ int ExtendibleHash<K, V>::GetGlobalDepth() const {
  */
 template <typename K, typename V>
 int ExtendibleHash<K, V>::GetLocalDepth(int bucket_id) const {
-  return 0;
+
+    return 0;
 }
 
 /*
@@ -43,7 +55,10 @@ int ExtendibleHash<K, V>::GetLocalDepth(int bucket_id) const {
  */
 template <typename K, typename V>
 int ExtendibleHash<K, V>::GetNumBuckets() const {
-  return 0;
+    mtx.lock();
+
+    mtx.unlock();
+    return 0;
 }
 
 /*
@@ -51,7 +66,10 @@ int ExtendibleHash<K, V>::GetNumBuckets() const {
  */
 template <typename K, typename V>
 bool ExtendibleHash<K, V>::Find(const K &key, V &value) {
-  return false;
+    mtx.lock();
+
+    mtx.unlock();
+    return false;
 }
 
 /*
@@ -60,7 +78,10 @@ bool ExtendibleHash<K, V>::Find(const K &key, V &value) {
  */
 template <typename K, typename V>
 bool ExtendibleHash<K, V>::Remove(const K &key) {
-  return false;
+    mtx.lock();
+
+    mtx.unlock();
+    return false;
 }
 
 /*
@@ -69,7 +90,30 @@ bool ExtendibleHash<K, V>::Remove(const K &key) {
  * global depth
  */
 template <typename K, typename V>
-void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {}
+void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
+    // Lấy giá trị hash theo khoá K
+    size_t hash_value = this->HashKey(key);
+
+    std::cout << hash_value;
+
+    size_t bucket_id = (hash_value % (1 << this->gd));
+
+    // Kiểm tra bucket còn chỗ trống
+    if(this->bucket_directory[bucket_id].size() < this->bucket_size){
+        this->bucket_directory[bucket_id].push_back(value);
+
+    } else{
+        int local_depth = this->GetLocalDepth(bucket_id);
+        // Nếu local depth of bucket < global depth
+        if (local_depth < this->gd){
+
+        }else{
+            // Double the size of bucket directory
+        }
+    }
+
+
+}
 
 template class ExtendibleHash<page_id_t, Page *>;
 template class ExtendibleHash<Page *, std::list<Page *>::iterator>;

@@ -15,6 +15,8 @@
 
 #include "hash/hash_table.h"
 
+using namespace std;
+
 namespace cmudb {
 
 template <typename K, typename V>
@@ -35,5 +37,12 @@ public:
 
 private:
   // add your own member variables here
+  hash<K> hash_f;
+  vector<V> bucket_list;
+  vector<vector<V>> bucket_directory;
+  vector<int> bucket_local_depth;
+  size_t bucket_size;
+  int gd;
+
 };
 } // namespace cmudb

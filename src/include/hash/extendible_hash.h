@@ -38,11 +38,12 @@ public:
 private:
   // add your own member variables here
   hash<K> hash_f;
-  vector<V> bucket_list;
-  vector<vector<V>> bucket_directory;
+  vector<vector<pair<K, V>>> bucket_list;
+  vector<int> bucket_directory;
   vector<int> bucket_local_depth;
   size_t bucket_size;
   int gd;
+  size_t num_bucket;
 
 };
 } // namespace cmudb

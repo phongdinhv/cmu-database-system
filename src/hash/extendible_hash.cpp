@@ -87,6 +87,7 @@ int ExtendibleHash<K, V>::GetNumBuckets() const {
  */
 template <typename K, typename V>
 bool ExtendibleHash<K, V>::Find(const K &key, V &value) {
+    mtx.lock();
     size_t hash_value = this->HashKey(key);
     int bucket_id = this->bucket_directory[(hash_value % (1 << this->GetGlobalDepth()))];
     for(auto elem = this->bucket_list[bucket_id].begin(); elem != this->bucket_list[bucket_id].end(); ++elem)
@@ -94,9 +95,11 @@ bool ExtendibleHash<K, V>::Find(const K &key, V &value) {
         if(elem->first == key)
         {
             value = elem->second;
+            mtx.unlock();
             return true;
         }
     }
+    mtx.unlock();
     return false;
 }
 
@@ -135,8 +138,8 @@ void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
     size_t hash_value = this->HashKey(key);
 
     int bucket_id = this->bucket_directory[(hash_value % (1 << this->GetGlobalDepth()))];
-    cout<<"Hash value: " << hash_value <<", 2^Global Depth: " << (1 << this->GetGlobalDepth())<<", " << (hash_value % (1 << this->GetGlobalDepth()))<< " ";
-    cout<<"Key ID"<<key<<", Bucket id: "<<bucket_id<<", Global Depth:"<<this->GetGlobalDepth()<<endl;
+//    cout<<"Hash value: " << hash_value <<", 2^Global Depth: " << (1 << this->GetGlobalDepth())<<", " << (hash_value % (1 << this->GetGlobalDepth()))<< " ";
+//    cout<<"Key ID"<<key<<", Bucket id: "<<bucket_id<<", Global Depth:"<<this->GetGlobalDepth()<<endl;
 
     // Check if a bucket has available slot
     if(this->bucket_list[bucket_id].size() < this->bucket_size){
@@ -149,7 +152,6 @@ void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
 
         if (local_depth == this->GetGlobalDepth()){
             // Double the size of bucket directory
-            cout<<"-Double size"<<endl;
             this->num_bucket *= 2;
             this->gd += 1;
             this->bucket_local_depth.resize(this->num_bucket);
@@ -161,34 +163,35 @@ void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
         }
         // Relocation element
         vector<pair<K,V>> temp_cache;
-        temp_cache.push_back(make_pair(key, value));
         while (not this->bucket_list[bucket_id].empty())
         {
             temp_cache.push_back(this->bucket_list[bucket_id].back());
             this->bucket_list[bucket_id].pop_back();
         }
-        set<int> bucket_change;
+        temp_cache.push_back(make_pair(key, value));
+
         for (auto elem = temp_cache.begin(); elem!=temp_cache.end(); ++elem) {
             size_t elem_hash_value = this->HashKey(elem->first);
-            int new_bucket_id = this->bucket_directory[(elem_hash_value % (1 << this->GetGlobalDepth()))];
+            size_t new_bucket_id = (elem_hash_value % (1 << this->GetGlobalDepth()));
             this->bucket_list[new_bucket_id].push_back(*elem);
-            bucket_change.insert(new_bucket_id);
+            this->bucket_local_depth[new_bucket_id] = this->GetGlobalDepth();
         }
-        for(auto _b = bucket_change.begin(); _b != bucket_change.end(); ++_b)
-            this->bucket_local_depth[*_b] += 1;
 
         // Re-pointer new bucket directory to exist bucket
         for (size_t i=0; i < this->bucket_directory.size(); ++i)
+        {
             if(this->bucket_directory[i] == -1)
             {
                 this->bucket_directory[i] = int(i) % (1 << (this->GetGlobalDepth()-1));
             }
-            else
-                this->bucket_directory[i] = int(i) % (1 << (this->GetGlobalDepth()));
+            if(this->bucket_directory[i] == bucket_id)
+            {
+                this->bucket_directory[i] = int(i) % (1 << (this->GetLocalDepth(bucket_id)));
+            }
+        }
     }
     this->num_bucket += 1;
     mtx.unlock();
-
 }
 
 template class ExtendibleHash<page_id_t, Page *>;

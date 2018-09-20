@@ -52,6 +52,7 @@ TEST(ExtendibleHashTest, ConcurrentInsertTest) {
   const int num_runs = 50;
   const int num_threads = 3;
   // Run concurrent test multiple times to guarantee correctness.
+  cout<<"Insert Test";
   for (int run = 0; run < num_runs; run++) {
     std::shared_ptr<ExtendibleHash<int, int>> test{new ExtendibleHash<int, int>(2)};
     std::vector<std::thread> threads;
@@ -70,12 +71,15 @@ TEST(ExtendibleHashTest, ConcurrentInsertTest) {
       EXPECT_EQ(val, i);
     }
   }
+  cout<<"====PASS"<<endl;
 }
 
 TEST(ExtendibleHashTest, ConcurrentRemoveTest) {
-  const int num_threads = 5;
-  const int num_runs = 50;
-  for (int run = 0; run < num_runs; run++) {
+
+    cout<<"RemoveTest";
+    const int num_threads = 5;
+    const int num_runs = 50;
+    for (int run = 0; run < num_runs; run++) {
     std::shared_ptr<ExtendibleHash<int, int>> test{new ExtendibleHash<int, int>(2)};
     std::vector<std::thread> threads;
     std::vector<int> values{0, 10, 16, 32, 64};
@@ -99,7 +103,8 @@ TEST(ExtendibleHashTest, ConcurrentRemoveTest) {
     EXPECT_EQ(0, test->Find(16, val));
     EXPECT_EQ(0, test->Find(3, val));
     EXPECT_EQ(1, test->Find(4, val));
-  }
+    }
+    cout<<"====PASS";
 }
 
 } // namespace cmudb

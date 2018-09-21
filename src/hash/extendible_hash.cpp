@@ -134,6 +134,18 @@ bool ExtendibleHash<K, V>::Remove(const K &key) {
 template <typename K, typename V>
 void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
     mtx.lock();
+    // Check if exist
+    V val;
+    if(this->Find(key, val)) {
+        size_t hash_value = this->HashKey(key);
+        int bucket_id = this->bucket_directory[(hash_value % (1 << this->GetGlobalDepth()))];
+        for (auto elem = this->bucket_list[bucket_id].begin(); elem != this->bucket_list[bucket_id].end(); ++elem) {
+            if (elem->first == key) {
+                elem->second = value;
+                return;
+            }
+        }
+    }
     // Get hash string base on key
     size_t hash_value = this->HashKey(key);
 
@@ -200,4 +212,6 @@ template class ExtendibleHash<Page *, std::list<Page *>::iterator>;
 template class ExtendibleHash<int, std::string>;
 template class ExtendibleHash<int, std::list<int>::iterator>;
 template class ExtendibleHash<int, int>;
+template class ExtendibleHash<int, unsigned long>;
+template class ExtendibleHash<Page*, unsigned long>;
 } // namespace cmudb

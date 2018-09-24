@@ -12,6 +12,8 @@
 #include <cstdlib>
 #include <vector>
 #include <string>
+#include <mutex>
+
 
 #include "hash/hash_table.h"
 
@@ -27,9 +29,9 @@ public:
   // helper function to generate hash addressing
   size_t HashKey(const K &key);
   // helper function to get global & local depth
-  int GetGlobalDepth() const;
-  int GetLocalDepth(int bucket_id) const;
-  int GetNumBuckets() const;
+  size_t GetGlobalDepth() const;
+  size_t GetLocalDepth(int bucket_id) const;
+    size_t GetNumBuckets() const;
   // lookup and modifier
   bool Find(const K &key, V &value) override;
   bool Remove(const K &key) override;
@@ -39,11 +41,14 @@ private:
   // add your own member variables here
   hash<K> hash_f;
   vector<vector<pair<K, V>>> bucket_list;
-  vector<int> bucket_directory;
-  vector<int> bucket_local_depth;
+  vector<size_t > bucket_directory;
+  vector<size_t > bucket_local_depth;
   size_t bucket_size;
-  int gd;
+  size_t gd;
   size_t num_bucket;
+  std::mutex mtx;
+  size_t directory_size;
+
 
 };
 } // namespace cmudb

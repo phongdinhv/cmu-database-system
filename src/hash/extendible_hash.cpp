@@ -1,13 +1,13 @@
 #include <list>
-#include <mutex>
 #include <iostream>
 #include <math.h>
 #include <set>
+#include <mutex>
+
 
 #include "hash/extendible_hash.h"
 #include "page/page.h"
 
-std::mutex mtx;
 
 namespace cmudb {
 
@@ -21,17 +21,18 @@ ExtendibleHash<K, V>::ExtendibleHash(size_t size) {
     // Init scalar value
     this->bucket_size = size;
     this->gd = 1;
-    this->num_bucket = 2;
+    this->directory_size = 2;
+    this->directory_size = 2;
 
     // Init bucket list
-    this->bucket_list.resize(this->num_bucket);
+    this->bucket_list.resize(this->directory_size);
 
     // Init bucket directory
     /*
      * 0 -> B0
      * 1 -> B1
      */
-    this->bucket_directory.resize(this->num_bucket);
+    this->bucket_directory.resize(this->directory_size);
     this->bucket_directory[0] = 0;
     this->bucket_directory[1] = 1;
 
@@ -41,7 +42,7 @@ ExtendibleHash<K, V>::ExtendibleHash(size_t size) {
      *  B0: 0
      *  B1: 0
      */
-    this->bucket_local_depth.resize(this->num_bucket);
+    this->bucket_local_depth.resize(this->directory_size);
     this->bucket_local_depth[0] = 0;
     this->bucket_local_depth[1] = 0;
 }
@@ -60,8 +61,10 @@ size_t ExtendibleHash<K, V>::HashKey(const K &key) {
  * NOTE: you must implement this function in order to pass test
  */
 template <typename K, typename V>
-int ExtendibleHash<K, V>::GetGlobalDepth() const {
-    return this->gd;
+size_t ExtendibleHash<K, V>::GetGlobalDepth() const {
+
+    size_t gd = this->gd;
+    return gd;
 }
 
 /*
@@ -69,7 +72,7 @@ int ExtendibleHash<K, V>::GetGlobalDepth() const {
  * NOTE: you must implement this function in order to pass test
  */
 template <typename K, typename V>
-int ExtendibleHash<K, V>::GetLocalDepth(int bucket_id) const {
+size_t ExtendibleHash<K, V>::GetLocalDepth(int bucket_id) const {
 
     return this->bucket_local_depth[bucket_id];
 }
@@ -78,8 +81,8 @@ int ExtendibleHash<K, V>::GetLocalDepth(int bucket_id) const {
  * helper function to return current number of bucket in hash table
  */
 template <typename K, typename V>
-int ExtendibleHash<K, V>::GetNumBuckets() const {
-    return int(this->bucket_list.size());
+size_t ExtendibleHash<K, V>::GetNumBuckets() const {
+    return this->bucket_list.size();
 }
 
 /*
@@ -87,19 +90,19 @@ int ExtendibleHash<K, V>::GetNumBuckets() const {
  */
 template <typename K, typename V>
 bool ExtendibleHash<K, V>::Find(const K &key, V &value) {
-    mtx.lock();
+    this->mtx.lock();
     size_t hash_value = this->HashKey(key);
-    int bucket_id = this->bucket_directory[(hash_value % (1 << this->GetGlobalDepth()))];
+    size_t bucket_id = this->bucket_directory[(hash_value % (1 << this->GetGlobalDepth()))];
     for(auto elem = this->bucket_list[bucket_id].begin(); elem != this->bucket_list[bucket_id].end(); ++elem)
     {
         if(elem->first == key)
         {
             value = elem->second;
-            mtx.unlock();
+            this->mtx.unlock();
             return true;
         }
     }
-    mtx.unlock();
+    this->mtx.unlock();
     return false;
 }
 
@@ -109,20 +112,20 @@ bool ExtendibleHash<K, V>::Find(const K &key, V &value) {
  */
 template <typename K, typename V>
 bool ExtendibleHash<K, V>::Remove(const K &key) {
-    mtx.lock();
+    this->mtx.lock();
     size_t hash_value = this->HashKey(key);
-    int bucket_id = this->bucket_directory[(hash_value % (1 << this->GetGlobalDepth()))];
+    size_t bucket_id = this->bucket_directory[(hash_value % (1 << this->GetGlobalDepth()))];
     int index=0;
     for(auto elem = this->bucket_list[bucket_id].begin(); elem != this->bucket_list[bucket_id].end(); ++elem, ++index)
     {
         if(elem->first == key)
         {
             this->bucket_list[bucket_id].erase(this->bucket_list[bucket_id].begin() + index);
-            mtx.unlock();
+            this->mtx.unlock();
             return true;
         }
     }
-    mtx.unlock();
+    this->mtx.unlock();
     return false;
 }
 
@@ -133,25 +136,23 @@ bool ExtendibleHash<K, V>::Remove(const K &key) {
  */
 template <typename K, typename V>
 void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
-    mtx.lock();
+//    cout<<"Insert "<< key<<", Global Depth "<<this->GetGlobalDepth();
     // Check if exist
-    V val;
-    if(this->Find(key, val)) {
-        size_t hash_value = this->HashKey(key);
-        int bucket_id = this->bucket_directory[(hash_value % (1 << this->GetGlobalDepth()))];
-        for (auto elem = this->bucket_list[bucket_id].begin(); elem != this->bucket_list[bucket_id].end(); ++elem) {
-            if (elem->first == key) {
-                elem->second = value;
-                return;
-            }
+    size_t check_hash_exist = this->HashKey(key);
+    size_t exist_bucket_id = this->bucket_directory[(check_hash_exist % (1 << this->GetGlobalDepth()))];
+    if (exist_bucket_id >= 0)
+    {
+        for (auto elem = this->bucket_list[exist_bucket_id].begin(); elem != this->bucket_list[exist_bucket_id].end(); ++elem) {
+        if (elem->first == key) {
+            elem->second = value;
+            return;
         }
+    }
     }
     // Get hash string base on key
     size_t hash_value = this->HashKey(key);
 
-    int bucket_id = this->bucket_directory[(hash_value % (1 << this->GetGlobalDepth()))];
-//    cout<<"Hash value: " << hash_value <<", 2^Global Depth: " << (1 << this->GetGlobalDepth())<<", " << (hash_value % (1 << this->GetGlobalDepth()))<< " ";
-//    cout<<"Key ID"<<key<<", Bucket id: "<<bucket_id<<", Global Depth:"<<this->GetGlobalDepth()<<endl;
+    size_t bucket_id = this->bucket_directory[(hash_value % (1 << this->GetGlobalDepth()))];
 
     // Check if a bucket has available slot
     if(this->bucket_list[bucket_id].size() < this->bucket_size){
@@ -160,17 +161,29 @@ void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
         this->bucket_list[bucket_id].push_back(make_pair(key, value));
 
     } else{
-        int local_depth = this->GetLocalDepth(bucket_id);
+        size_t local_depth = this->GetLocalDepth(bucket_id);
 
         if (local_depth == this->GetGlobalDepth()){
             // Double the size of bucket directory
-            this->num_bucket *= 2;
+            this->directory_size *= 2;
             this->gd += 1;
-            this->bucket_local_depth.resize(this->num_bucket);
-            this->bucket_directory.resize(this->num_bucket);
-            this->bucket_list.resize(this->num_bucket);
-            for(size_t i=this->num_bucket/2; i<this->bucket_directory.size(); ++i)
-                this->bucket_directory[i] = -1;
+            this->bucket_local_depth.resize(this->directory_size);
+            this->bucket_directory.resize(this->directory_size);
+            this->bucket_list.resize(this->directory_size);
+
+            this->bucket_local_depth[bucket_id] += 1;
+            this->bucket_local_depth[bucket_id + (1<<(this->GetGlobalDepth()-1))] += 1;
+
+            for(size_t i=0; i<this->bucket_directory.size(); ++i)
+            {
+                this->bucket_directory[i] = i % (1 << (this->GetGlobalDepth()-1));
+                if(i == bucket_id + (1<<(this->GetGlobalDepth()-1)))
+                    this->bucket_directory[i] = i % (1 << (this->GetGlobalDepth()));
+                if( i == bucket_id)
+                    this->bucket_directory[i] = i % (1 << (this->GetGlobalDepth()));
+            }
+
+
 
         }
         // Relocation element
@@ -183,27 +196,10 @@ void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
         temp_cache.push_back(make_pair(key, value));
 
         for (auto elem = temp_cache.begin(); elem!=temp_cache.end(); ++elem) {
-            size_t elem_hash_value = this->HashKey(elem->first);
-            size_t new_bucket_id = (elem_hash_value % (1 << this->GetGlobalDepth()));
-            this->bucket_list[new_bucket_id].push_back(*elem);
-            this->bucket_local_depth[new_bucket_id] = this->GetGlobalDepth();
-        }
-
-        // Re-pointer new bucket directory to exist bucket
-        for (size_t i=0; i < this->bucket_directory.size(); ++i)
-        {
-            if(this->bucket_directory[i] == -1)
-            {
-                this->bucket_directory[i] = int(i) % (1 << (this->GetGlobalDepth()-1));
-            }
-            if(this->bucket_directory[i] == bucket_id)
-            {
-                this->bucket_directory[i] = int(i) % (1 << (this->GetLocalDepth(bucket_id)));
-            }
+            this->Insert(elem->first, elem->second);
         }
     }
     this->num_bucket += 1;
-    mtx.unlock();
 }
 
 template class ExtendibleHash<page_id_t, Page *>;
@@ -212,6 +208,6 @@ template class ExtendibleHash<Page *, std::list<Page *>::iterator>;
 template class ExtendibleHash<int, std::string>;
 template class ExtendibleHash<int, std::list<int>::iterator>;
 template class ExtendibleHash<int, int>;
-//template class ExtendibleHash<int, unsigned long>;
-//template class ExtendibleHash<Page*, unsigned long>;
+template class ExtendibleHash<int, unsigned long>;
+template class ExtendibleHash<Page*, unsigned long>;
 } // namespace cmudb

@@ -30,8 +30,8 @@ public:
   size_t Size();
 
 private:
-  // add your member variables here
-//  ExtendibleHash<T, size_t >* lru_table;
+//   add your member variables here
+  ExtendibleHash<T, size_t >* lru_table;
   vector<T> _buffer;
   size_t _time;
 };

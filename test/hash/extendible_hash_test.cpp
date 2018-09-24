@@ -3,10 +3,12 @@
  */
 
 #include <thread>
+#include <iostream>
+
 
 #include "hash/extendible_hash.h"
 #include "gtest/gtest.h"
-#include <iostream>
+#include "common/logger.h"
 
 using namespace std;
 
@@ -50,6 +52,21 @@ TEST(ExtendibleHashTest, SampleTest) {
     delete test;
 }
 
+TEST(ExtendibleHashTest, CustomeTest) {
+    // set leaf size as 2
+    ExtendibleHash<int, int> *test = new ExtendibleHash<int, int>(2);
+    cout<<endl<<"Custome"<<endl;
+    test->Insert(0,0);
+    test->Insert(10,10);
+    test->Insert(16,16);
+    test->Insert(32,32);
+    test->Insert(64,64);
+
+    EXPECT_EQ(6, test->GetGlobalDepth());
+
+    delete test;
+}
+
 TEST(ExtendibleHashTest, ConcurrentInsertTest) {
   const int num_runs = 50;
   const int num_threads = 3;
@@ -79,29 +96,37 @@ TEST(ExtendibleHashTest, ConcurrentRemoveTest) {
     const int num_threads = 5;
     const int num_runs = 50;
     for (int run = 0; run < num_runs; run++) {
-    std::shared_ptr<ExtendibleHash<int, int>> test{new ExtendibleHash<int, int>(2)};
-    std::vector<std::thread> threads;
-    std::vector<int> values{0, 10, 16, 32, 64};
-    for (int value : values) {
-      test->Insert(value, value);
-    }
-    EXPECT_EQ(test->GetGlobalDepth(), 6);
-    for (int tid = 0; tid < num_threads; tid++) {
-      threads.push_back(std::thread([tid, &test, &values]() {
-        test->Remove(values[tid]);
-        test->Insert(tid + 4, tid + 4);
-      }));
-    }
-    for (int i = 0; i < num_threads; i++) {
-      threads[i].join();
-    }
-    EXPECT_EQ(test->GetGlobalDepth(), 6);
-    int val;
-    EXPECT_EQ(0, test->Find(0, val));
-    EXPECT_EQ(1, test->Find(8, val));
-    EXPECT_EQ(0, test->Find(16, val));
-    EXPECT_EQ(0, test->Find(3, val));
-    EXPECT_EQ(1, test->Find(4, val));
+
+        std::shared_ptr<ExtendibleHash<int, int>> test{new ExtendibleHash<int, int>(2)};
+
+        std::vector<std::thread> threads;
+
+        std::vector<int> values{0, 10, 16, 32, 64};
+
+        for (int value : values) {
+          test->Insert(value, value);
+        }
+
+        EXPECT_EQ(test->GetGlobalDepth(), 6);
+
+        for (int tid = 0; tid < num_threads; tid++) {
+          threads.push_back(std::thread([tid, &test, &values]() {
+            test->Remove(values[tid]);
+            test->Insert(tid + 4, tid + 4);
+          }));
+        }
+
+        for (int i = 0; i < num_threads; i++) {
+          threads[i].join();
+        }
+
+        EXPECT_EQ(test->GetGlobalDepth(), 6);
+        int val;
+        EXPECT_EQ(0, test->Find(0, val));
+        EXPECT_EQ(1, test->Find(8, val));
+        EXPECT_EQ(0, test->Find(16, val));
+        EXPECT_EQ(0, test->Find(3, val));
+        EXPECT_EQ(1, test->Find(4, val));
     }
 }
 } // namespace cmudb

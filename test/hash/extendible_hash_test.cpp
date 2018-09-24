@@ -6,14 +6,16 @@
 
 #include "hash/extendible_hash.h"
 #include "gtest/gtest.h"
+#include <iostream>
+
+using namespace std;
 
 namespace cmudb {
 
 TEST(ExtendibleHashTest, SampleTest) {
     // set leaf size as 2
-    cout<< "blah blah blah";
     ExtendibleHash<int, std::string> *test = new ExtendibleHash<int, std::string>(2);
-
+    cout<<"Run test";
     // insert several key/value pairs
     test->Insert(1, "a");
     test->Insert(2, "b");
@@ -52,7 +54,6 @@ TEST(ExtendibleHashTest, ConcurrentInsertTest) {
   const int num_runs = 50;
   const int num_threads = 3;
   // Run concurrent test multiple times to guarantee correctness.
-  cout<<"Insert Test";
   for (int run = 0; run < num_runs; run++) {
     std::shared_ptr<ExtendibleHash<int, int>> test{new ExtendibleHash<int, int>(2)};
     std::vector<std::thread> threads;
@@ -71,12 +72,10 @@ TEST(ExtendibleHashTest, ConcurrentInsertTest) {
       EXPECT_EQ(val, i);
     }
   }
-  cout<<"====PASS"<<endl;
 }
 
 TEST(ExtendibleHashTest, ConcurrentRemoveTest) {
 
-    cout<<"RemoveTest";
     const int num_threads = 5;
     const int num_runs = 50;
     for (int run = 0; run < num_runs; run++) {
@@ -104,7 +103,5 @@ TEST(ExtendibleHashTest, ConcurrentRemoveTest) {
     EXPECT_EQ(0, test->Find(3, val));
     EXPECT_EQ(1, test->Find(4, val));
     }
-    cout<<"====PASS";
 }
-
 } // namespace cmudb

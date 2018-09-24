@@ -212,6 +212,6 @@ template class ExtendibleHash<Page *, std::list<Page *>::iterator>;
 template class ExtendibleHash<int, std::string>;
 template class ExtendibleHash<int, std::list<int>::iterator>;
 template class ExtendibleHash<int, int>;
-template class ExtendibleHash<int, unsigned long>;
-template class ExtendibleHash<Page*, unsigned long>;
+//template class ExtendibleHash<int, unsigned long>;
+//template class ExtendibleHash<Page*, unsigned long>;
 } // namespace cmudb

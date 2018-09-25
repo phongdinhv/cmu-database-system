@@ -7,6 +7,7 @@
 
 #include "hash/extendible_hash.h"
 #include "page/page.h"
+#include "limits.h"
 
 
 namespace cmudb {
@@ -136,11 +137,10 @@ bool ExtendibleHash<K, V>::Remove(const K &key) {
  */
 template <typename K, typename V>
 void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
-//    cout<<"Insert "<< key<<", Global Depth "<<this->GetGlobalDepth();
     // Check if exist
     size_t check_hash_exist = this->HashKey(key);
     size_t exist_bucket_id = this->bucket_directory[(check_hash_exist % (1 << this->GetGlobalDepth()))];
-    if (exist_bucket_id >= 0)
+    if (exist_bucket_id >= 0 && exist_bucket_id < LLONG_MAX)
     {
         for (auto elem = this->bucket_list[exist_bucket_id].begin(); elem != this->bucket_list[exist_bucket_id].end(); ++elem) {
         if (elem->first == key) {
@@ -151,8 +151,14 @@ void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
     }
     // Get hash string base on key
     size_t hash_value = this->HashKey(key);
+    size_t hash_index = (hash_value % (1 << this->GetGlobalDepth()));
+    size_t bucket_id = this->bucket_directory[hash_index];
+    if(bucket_id == LLONG_MAX)
+    {
+        bucket_id = (hash_value % (1 << this->GetGlobalDepth()));
+        this->bucket_directory[bucket_id] = bucket_id;
 
-    size_t bucket_id = this->bucket_directory[(hash_value % (1 << this->GetGlobalDepth()))];
+    }
 
     // Check if a bucket has available slot
     if(this->bucket_list[bucket_id].size() < this->bucket_size){
@@ -171,19 +177,11 @@ void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
             this->bucket_directory.resize(this->directory_size);
             this->bucket_list.resize(this->directory_size);
 
-            this->bucket_local_depth[bucket_id] += 1;
-            this->bucket_local_depth[bucket_id + (1<<(this->GetGlobalDepth()-1))] += 1;
-
-            for(size_t i=0; i<this->bucket_directory.size(); ++i)
+            for(size_t i=this->directory_size/2; i<this->directory_size;++i)
             {
-                this->bucket_directory[i] = i % (1 << (this->GetGlobalDepth()-1));
-                if(i == bucket_id + (1<<(this->GetGlobalDepth()-1)))
-                    this->bucket_directory[i] = i % (1 << (this->GetGlobalDepth()));
-                if( i == bucket_id)
-                    this->bucket_directory[i] = i % (1 << (this->GetGlobalDepth()));
+//                this->bucket_local_depth[i] = 0;
+                this->bucket_directory[i] = LLONG_MAX;
             }
-
-
 
         }
         // Relocation element
@@ -194,9 +192,27 @@ void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
             this->bucket_list[bucket_id].pop_back();
         }
         temp_cache.push_back(make_pair(key, value));
+        this->bucket_local_depth[bucket_id] = LLONG_MAX;
+        this->bucket_directory[bucket_id] = LLONG_MAX;
+        for(size_t i=0; i<this->directory_size;++i)
+        {
+//                this->bucket_local_depth[i] = 0;
+            if(this->bucket_directory[i] == bucket_id)
+                this->bucket_directory[i] = LLONG_MAX;
+        }
 
         for (auto elem = temp_cache.begin(); elem!=temp_cache.end(); ++elem) {
             this->Insert(elem->first, elem->second);
+        }
+
+        // Repointer
+        for(size_t i=0; i<this->directory_size;++i)
+        {
+//                this->bucket_local_depth[i] = 0;
+            if(this->bucket_directory[i] == LLONG_MAX)
+                this->bucket_directory[i] = i % (1 << (this->GetGlobalDepth()-1));
+//            if(this->bucket_directory[i] == bucket_id)
+//                this->bucket_directory[i] = i % (1 << (this->GetGlobalDepth()));
         }
     }
     this->num_bucket += 1;

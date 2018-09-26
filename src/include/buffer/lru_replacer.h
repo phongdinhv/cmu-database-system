@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <mutex>
 #include "buffer/replacer.h"
 #include "hash/extendible_hash.h"
 
@@ -34,6 +35,7 @@ private:
   ExtendibleHash<T, size_t >* lru_table;
   vector<T> _buffer;
   size_t _time;
+  std::mutex mtx;
 };
 
 } // namespace cmudb

@@ -46,7 +46,54 @@ BufferPoolManager::~BufferPoolManager() {
  * 4. Update page metadata, read page content from disk file and return page
  * pointer
  */
-Page *BufferPoolManager::FetchPage(page_id_t page_id) { return nullptr; }
+Page *BufferPoolManager::FetchPage(page_id_t page_id) {
+
+    Page* page=nullptr;
+    if(this->page_table_->Find(page_id, page))
+    {
+        page->pin_count_ += 1;
+        this->replacer_->Erase(page);
+        return page;
+    }
+    else{
+        for(auto _p=free_list_->begin(); _p != free_list_->end(); _p++)
+        {
+            if((*_p)->page_id_ == INVALID_PAGE_ID)
+            {
+                page = (*_p);
+                break;
+            }
+        }
+        if(page == nullptr)
+        {
+            // Select an unpinned page from lru
+            // Remove it from hash table
+            this->replacer_->Victim(page);
+            if(page == nullptr)
+                return nullptr ; // no free slot, all pages are pinned
+        }
+        if(page->is_dirty_)
+        {
+            disk_manager_->WritePage(page->GetPageId(), (const char*)page->data_);
+        }
+        char data_[PAGE_SIZE]; // actual data
+        char test[PAGE_SIZE];
+        strcpy(data_, "12333");
+        disk_manager_->WritePage(0, data_);
+        disk_manager_->ReadPage(0, test);
+
+        page_table_->Remove(page->GetPageId());
+        page->page_id_ = page_id;
+        page->pin_count_ = 1;
+        page->is_dirty_ = false;
+
+        // Read page content from disk
+        disk_manager_->ReadPage(page_id, page->data_);
+        page_table_->Insert(page->page_id_, page);
+
+    }
+    return page;
+}
 
 /*
  * Implementation of unpin page
@@ -55,6 +102,19 @@ Page *BufferPoolManager::FetchPage(page_id_t page_id) { return nullptr; }
  * dirty flag of this page
  */
 bool BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty) {
+  Page* unpin_page;
+  if(page_table_->Find(page_id, unpin_page))
+  {
+      if(is_dirty)
+          unpin_page->is_dirty_ = true;
+      if(unpin_page->pin_count_ > 0)
+      {
+          unpin_page->pin_count_ -= 1;
+          replacer_->Insert(unpin_page);
+          return true;
+      }
+
+  }
   return false;
 }
 
@@ -64,7 +124,14 @@ bool BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty) {
  * if page is not found in page table, return false
  * NOTE: make sure page_id != INVALID_PAGE_ID
  */
-bool BufferPoolManager::FlushPage(page_id_t page_id) { return false; }
+bool BufferPoolManager::FlushPage(page_id_t page_id) {
+    Page* flush_page;
+    if(page_table_->Find(page_id, flush_page) && page_id != INVALID_PAGE_ID) {
+        disk_manager_->WritePage(page_id, flush_page->GetData());
+        return true;
+    }
+    return false;
+}
 
 /**
  * User should call this method for deleting a page. This routine will call
@@ -74,7 +141,19 @@ bool BufferPoolManager::FlushPage(page_id_t page_id) { return false; }
  * call disk manager's DeallocatePage() method to delete from disk file. If
  * the page is found within page table, but pin_count != 0, return false
  */
-bool BufferPoolManager::DeletePage(page_id_t page_id) { return false; }
+bool BufferPoolManager::DeletePage(page_id_t page_id) {
+    Page* delete_page;
+    if(page_table_->Find(page_id, delete_page) && page_id != INVALID_PAGE_ID)
+    {
+        if(delete_page->pin_count_ == 0)
+        {
+            page_table_->Remove(page_id);
+            disk_manager_->DeallocatePage(page_id);
+            return true;
+        }
+    }
+    return false;
+}
 
 /**
  * User should call this method if needs to create a new page. This routine
@@ -84,5 +163,8 @@ bool BufferPoolManager::DeletePage(page_id_t page_id) { return false; }
  * update new page's metadata, zero out memory and add corresponding entry
  * into page table. return nullptr if all the pages in pool are pinned
  */
-Page *BufferPoolManager::NewPage(page_id_t &page_id) { return nullptr; }
+Page *BufferPoolManager::NewPage(page_id_t &page_id) {
+    page_id = disk_manager_->AllocatePage();
+    return FetchPage(page_id);
+}
 } // namespace cmudb

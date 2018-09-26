@@ -48,4 +48,18 @@ TEST(BufferPoolManagerTest, SampleTest) {
   remove("test.db");
 }
 
+TEST(BufferPoolManagerTest, Custome) {
+
+//      page_id_t temp_page_id;
+
+    DiskManager *disk_manager = new DiskManager("test.db");
+    char data_[PAGE_SIZE]; // actual data
+    char test[PAGE_SIZE];
+    strcpy(data_, "12333");
+    disk_manager->WritePage(0, data_);
+    disk_manager->ReadPage(0, test);
+    remove("test.db");
+}
+
+
 } // namespace cmudb

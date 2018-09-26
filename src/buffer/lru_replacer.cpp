@@ -20,11 +20,13 @@ template <typename T> LRUReplacer<T>::~LRUReplacer() {
  * Insert value into LRU
  */
 template <typename T> void LRUReplacer<T>::Insert(const T &value) {
+    this->mtx.lock();
     size_t tmp_val;
     if(not this->lru_table->Find(value, tmp_val))
         this->_buffer.push_back(value);
 
     this->lru_table->Insert(value, ++this->_time);
+    this->mtx.unlock();
 
 }
 
@@ -32,12 +34,17 @@ template <typename T> void LRUReplacer<T>::Insert(const T &value) {
  * return true. If LRU is empty, return false
  */
 template <typename T> bool LRUReplacer<T>::Victim(T &value) {
+    this->mtx.lock();
     if(this->_buffer.empty())
+    {
+        this->mtx.unlock();
         return false;
+    }
     if(this->_buffer.size() == 1)
     {
         value = this->_buffer[0];
         this->lru_table->Remove(value);
+        this->mtx.unlock();
         return true;
     }
     T victim = this->_buffer[0];
@@ -58,7 +65,8 @@ template <typename T> bool LRUReplacer<T>::Victim(T &value) {
     }
     value = victim;
     this->lru_table->Remove(value);
-    this->_buffer.erase(this->_buffer.begin(), this->_buffer.begin() + index);
+    this->_buffer.erase(this->_buffer.begin() + index);
+    this->mtx.unlock();
     return true;
 }
 
@@ -67,24 +75,29 @@ template <typename T> bool LRUReplacer<T>::Victim(T &value) {
  * return false
  */
 template <typename T> bool LRUReplacer<T>::Erase(const T &value) {
+    this->mtx.lock();
     size_t time;
     if(not this->lru_table->Find(value, time))
+    {
+        this->mtx.unlock();
         return false;
+    }
     this->lru_table->Remove(value);
     for(size_t i=0; i< this->_buffer.size(); i++)
     {
         if(this->_buffer[i] == value)
         {
-            this->_buffer.erase(this->_buffer.begin(), this->_buffer.begin() + i);
+            this->_buffer.erase(this->_buffer.begin() + i);
             break;
         }
     }
+    this->mtx.unlock();
     return true;
 }
 
 template <typename T> size_t LRUReplacer<T>::Size() {
-//    return this->_buffer.size();
-    return 0;
+    return this->_buffer.size();
+//    return 0;
 }
 
 template class LRUReplacer<Page *>;

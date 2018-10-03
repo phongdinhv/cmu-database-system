@@ -129,4 +129,21 @@ TEST(ExtendibleHashTest, ConcurrentRemoveTest) {
         EXPECT_EQ(1, test->Find(4, val));
     }
 }
+TEST(ExtendibleHashTest, ReplaceTest) {
+    ExtendibleHash<int, int> *test = new ExtendibleHash<int, int>(2);
+    cout<<endl<<"Custome"<<endl;
+    test->Insert(0,0);
+    test->Insert(0,1);
+    test->Insert(2,2);
+    test->Insert(3,5);
+    test->Insert(6,8);
+    test->Insert(2,5);
+    int val;
+    test->Find(0, val);
+    EXPECT_EQ(1, val);
+    test->Find(2, val);
+    EXPECT_EQ(5, val);
+
+    delete test;
+}
 } // namespace cmudb

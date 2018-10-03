@@ -48,7 +48,7 @@ BufferPoolManager::~BufferPoolManager() {
  */
 Page *BufferPoolManager::FetchPage(page_id_t page_id) {
 
-    Page* page=nullptr;
+    Page* page= nullptr;
     if(this->page_table_->Find(page_id, page))
     {
         page->pin_count_ += 1;
@@ -74,22 +74,26 @@ Page *BufferPoolManager::FetchPage(page_id_t page_id) {
         }
         if(page->is_dirty_)
         {
-            disk_manager_->WritePage(page->GetPageId(), (const char*)page->data_);
-        }
-        char data_[PAGE_SIZE]; // actual data
-        char test[PAGE_SIZE];
-        strcpy(data_, "12333");
-        disk_manager_->WritePage(0, data_);
-        disk_manager_->ReadPage(0, test);
+            char page_test[PAGE_SIZE];
+            disk_manager_->ReadPage(0, page_test);
+            cout<<page_test;
 
-        page_table_->Remove(page->GetPageId());
+            this->FlushPage(page->GetPageId());
+        }
+        if(page->GetPageId() != INVALID_PAGE_ID)
+        {
+            page_table_->Remove(page->GetPageId());
+        }
+
         page->page_id_ = page_id;
         page->pin_count_ = 1;
         page->is_dirty_ = false;
+        page->ResetMemory();
 
         // Read page content from disk
         disk_manager_->ReadPage(page_id, page->data_);
         page_table_->Insert(page->page_id_, page);
+
 
     }
     return page;

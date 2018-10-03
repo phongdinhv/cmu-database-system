@@ -36,6 +36,11 @@ TEST(BufferPoolManagerTest, SampleTest) {
   for (int i = 0; i < 5; ++i) {
     EXPECT_EQ(true, bpm.UnpinPage(i, true));
   }
+  bpm.FlushPage(0);
+  char test[PAGE_SIZE];
+  disk_manager->ReadPage(0, test);
+    // check read content
+  EXPECT_EQ(0, strcmp(test, "Hello"));
   // we have 5 empty slots in LRU list, evict page zero out of buffer pool
   for (int i = 10; i < 14; ++i) {
     EXPECT_NE(nullptr, bpm.NewPage(temp_page_id));
@@ -48,16 +53,34 @@ TEST(BufferPoolManagerTest, SampleTest) {
   remove("test.db");
 }
 
-TEST(BufferPoolManagerTest, Custome) {
+TEST(BufferPoolManagerTest, CustomeTest1) {
 
-//      page_id_t temp_page_id;
+    page_id_t temp_page_id;
 
     DiskManager *disk_manager = new DiskManager("test.db");
-    char data_[PAGE_SIZE]; // actual data
+    BufferPoolManager bpm(10, disk_manager);
+    auto page_zero = bpm.NewPage(temp_page_id);
+    cout<<page_zero->GetPinCount();
+//    auto page_one = bpm.NewPage(temp_page_id);
+//    auto page_two = bpm.NewPage(temp_page_id);
+//
+//    strcpy(page_zero->GetData(), "Hello");
+//    strcpy(page_one->GetData(), "");
+//    strcpy(page_two->GetData(), "");
+//
+//    bpm.FlushPage(0);
+//    bpm.FlushPage(1);
+//    bpm.FlushPage(2);
+
+    // fetch page one again
     char test[PAGE_SIZE];
-    strcpy(data_, "12333");
-    disk_manager->WritePage(0, data_);
+    disk_manager->WritePage(0, (char*)"Hello World");
     disk_manager->ReadPage(0, test);
+    // check read content
+//    EXPECT_EQ(0, strcmp(test, "Hello"));
+
+    cout<<"=======\n";
+    cout<<test;
     remove("test.db");
 }
 

@@ -74,16 +74,15 @@ Page *BufferPoolManager::FetchPage(page_id_t page_id) {
         }
         if(page->is_dirty_)
         {
-            char page_test[PAGE_SIZE];
-            disk_manager_->ReadPage(0, page_test);
-            cout<<page_test;
-
             this->FlushPage(page->GetPageId());
         }
         if(page->GetPageId() != INVALID_PAGE_ID)
         {
             page_table_->Remove(page->GetPageId());
+//            delete page;
+//            page = new Page;
         }
+
 
         page->page_id_ = page_id;
         page->pin_count_ = 1;
@@ -145,6 +144,7 @@ bool BufferPoolManager::FlushPage(page_id_t page_id) {
  * call disk manager's DeallocatePage() method to delete from disk file. If
  * the page is found within page table, but pin_count != 0, return false
  */
+
 bool BufferPoolManager::DeletePage(page_id_t page_id) {
     Page* delete_page;
     if(page_table_->Find(page_id, delete_page) && page_id != INVALID_PAGE_ID)

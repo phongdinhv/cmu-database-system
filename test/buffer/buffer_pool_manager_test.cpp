@@ -55,12 +55,13 @@ TEST(BufferPoolManagerTest, SampleTest) {
 
 TEST(BufferPoolManagerTest, CustomeTest1) {
 
-    page_id_t temp_page_id;
+
 
     DiskManager *disk_manager = new DiskManager("test.db");
-    BufferPoolManager bpm(10, disk_manager);
-    auto page_zero = bpm.NewPage(temp_page_id);
-    cout<<page_zero->GetPinCount();
+//    BufferPoolManager bpm(10, disk_manager);
+//    page_id_t temp_page_id;
+//    auto page_zero = bpm.NewPage(temp_page_id);
+//    cout<<page_zero->GetPinCount();
 //    auto page_one = bpm.NewPage(temp_page_id);
 //    auto page_two = bpm.NewPage(temp_page_id);
 //
@@ -74,13 +75,16 @@ TEST(BufferPoolManagerTest, CustomeTest1) {
 
     // fetch page one again
     char test[PAGE_SIZE];
-    disk_manager->WritePage(0, (char*)"Hello World");
+    char test2[PAGE_SIZE];
     disk_manager->ReadPage(0, test);
+
+    disk_manager->WritePage(0, (char*)"Hello World");
+    disk_manager->ReadPage(0, test2);
     // check read content
 //    EXPECT_EQ(0, strcmp(test, "Hello"));
 
     cout<<"=======\n";
-    cout<<test;
+    cout<<test2;
     remove("test.db");
 }
 
